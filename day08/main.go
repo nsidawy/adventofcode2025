@@ -21,6 +21,8 @@ type Pair struct {
 	distance float64
 }
 
+type Circuit map[Point]bool
+
 func main() {
 	if len(os.Args) < 3 {
 		log.Fatal("Usage: go run main.go <filename> <target>")
@@ -43,7 +45,7 @@ func main() {
 	fmt.Println(pair.points[0].x * pair.points[1].x)
 }
 
-func connectCircuit(points []Point, pairs []Pair, target int) ([]map[Point]bool, Pair) {
+func connectCircuit(points []Point, pairs []Pair, target int) ([]Circuit, Pair) {
 	circuits := getCircuits(points)
 	var pair Pair
 	for i := 0; i < target; i++ {
@@ -105,10 +107,10 @@ func getPairs(points []Point) []Pair {
 	return pairs
 }
 
-func getCircuits(points []Point) []map[Point]bool {
-	circuits := make([]map[Point]bool, len(points))
+func getCircuits(points []Point) []Circuit {
+	circuits := make([]Circuit, len(points))
 	for i, p := range points {
-		circuits[i] = make(map[Point]bool)
+		circuits[i] = make(Circuit)
 		circuits[i][p] = true
 	}
 	return circuits
