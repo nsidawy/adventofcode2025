@@ -78,10 +78,6 @@ func isValidArea(p1 Point, p2 Point, redTiles []Point, borderTiles map[Point]boo
 		point1 := redTiles[i]
 		point2 := redTiles[(i+1)%len(redTiles)]
 
-		if (p1 == point1 || p1 == point2) && (p2 == point1 || p2 == point2) {
-			continue
-		}
-
 		// Calculate bounding box for the segment (point1, point2)
 		segLowerX := min(point1.x, point2.x)
 		segHigherX := max(point1.x, point2.x)
