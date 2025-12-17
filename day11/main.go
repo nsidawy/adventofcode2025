@@ -14,25 +14,63 @@ func main() {
 	filename := os.Args[1]
 	lines := readLinesFromFile(filename)
 	neighbors := make(map[string][]string)
+	reverse := make(map[string][]string)
 	for _, line := range lines {
 		parts := strings.Split(line, ": ")
-		neighbors[parts[0]] = strings.Split(parts[1], " ")
+		start := parts[0]
+		ends := strings.Split(parts[1], " ")
+		if reverse[start] == nil {
+			reverse[start] = []string{}
+		}
+		for _, e := range ends {
+			if reverse[e] == nil {
+				reverse[e] = []string{}
+			}
+			reverse[e] = append(reverse[e], start)
+		}
+		neighbors[start] = ends
 	}
-	fmt.Println(getPaths(neighbors))
-	fmt.Println(getPaths2(neighbors))
+	//fmt.Println(getPaths(neighbors, "you", "out"))
+	fmt.Println(getPathsReverse(reverse, "you", "out"))
+	c1 := getPathsReverse(reverse, "svr", "fft")
+	fmt.Println(c1)
+	c2 := getPathsReverse(reverse, "fft", "dac")
+	fmt.Println(c2)
+	c3 := getPathsReverse(reverse, "dac", "out")
+	fmt.Println(c3)
+	fmt.Println(c1 * c2 * c3)
 }
 
-func getPaths(neighbors map[string][]string) int {
+func getPaths(neighbors map[string][]string, start string, end string) int {
 	count := 0
-	current := []string{"you"}
+	current := []string{start}
 	for len(current) > 0 {
 		next := []string{}
 		for _, c := range current {
-			if c == "out" {
+			if c == end {
 				count++
 				continue
 			}
 			next = append(next, neighbors[c]...)
+		}
+		current = next
+	}
+	return count
+}
+
+func getPathsReverse(reverse map[string][]string, start string, end string) int {
+	count := 0
+	current := map[string]int{end: 1}
+	for len(current) > 0 {
+		next := map[string]int{}
+		for k, v := range current {
+			if k == start {
+				count += v
+				continue
+			}
+			for _, c := range reverse[k] {
+				next[c] += v
+			}
 		}
 		current = next
 	}
