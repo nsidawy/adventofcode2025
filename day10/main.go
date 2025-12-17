@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -26,95 +27,124 @@ func main() {
 		machines[i] = parseMachine(line)
 	}
 
-	fmt.Println(getTotalIndicatorRoute(machines, findIndicatorRoute))
-	fmt.Println(getTotalIndicatorRoute(machines, findJoltageRoute))
+	fmt.Println(getTotalIndicatorRoute(machines))
+	fmt.Println(getTotalJoltageRoute(machines))
 }
 
-func getTotalIndicatorRoute(machines []Machine, routeFunc func(Machine) int) int {
+func getTotalIndicatorRoute(machines []Machine) int {
 	total := 0
 	for _, machine := range machines {
-		count := routeFunc(machine)
+		paths := findIndicatorRoute(machine)
+		sort.Slice(paths, func(i, j int) bool {
+			return len(paths[i]) < len(paths[j])
+		})
+		count := len(paths[0])
+		fmt.Println(count, paths[0], machine)
+		total += count
+	}
+	return total
+}
+
+func getTotalJoltageRoute(machines []Machine) int {
+	total := 0
+	for _, machine := range machines {
+		count := findJoltageRoute(machine.joltageTarget, machine.switches, []int{})
 		fmt.Println(count, machine)
 		total += count
 	}
 	return total
 }
 
-func findJoltageRoute(machine Machine) int {
-	return findJoltageRouteStep(machine, make([]int, len(machine.joltageTarget)), make(map[string]bool), intSliceToString(machine.joltageTarget))
-}
+func findJoltageRoute(joltage []int, switches [][]int, path []int) int {
+	indicator := getIndicatorFromJoltage(joltage)
+	partialMachine := Machine{indicatorTarget: indicator, switches: switches, joltageTarget: joltage}
+	partialPaths := findIndicatorRoute(partialMachine)
 
-func findJoltageRouteStep(machine Machine, state []int, seen map[string]bool, targetStateStr string) int {
-	if targetStateStr == intSliceToString(state) {
-		return 0
-	}
-	sortedSwitches := make([][]int, len(machine.switches))
-	copy(sortedSwitches, machine.switches)
-	sort.Slice(sortedSwitches, func(i, j int) bool {
-		val1, val2 := 0, 0
-		for _, sw := range sortedSwitches[i] {
-			val1 += machine.joltageTarget[sw] - state[sw]
+	minPath := math.MaxInt32
+	for _, partialPath := range partialPaths {
+		newJoltage := make([]int, len(joltage))
+		copy(newJoltage, joltage)
+		newPath := make([]int, len(path)+len(partialPath))
+		copy(newPath, path)
+		copy(newPath[len(path):], partialPath)
+		for _, si := range partialPath {
+			for _, sw := range switches[si] {
+				newJoltage[sw]--
+			}
 		}
-		for _, sw := range sortedSwitches[j] {
-			val2 += machine.joltageTarget[sw] - state[sw]
-		}
-		return val1 > val2
-	})
-	//fmt.Println(sortedSwitches)
-	best := 10000
-	for _, sw := range sortedSwitches {
-		nextState := make([]int, len(machine.joltageTarget))
-		copy(nextState, state)
-		tooHigh := false
-		for _, s := range sw {
-			nextState[s] += 1
-			if nextState[s] > machine.joltageTarget[s] {
-				tooHigh = true
+
+		is_negative := false
+		for _, j := range newJoltage {
+			if j < 0 {
+				is_negative = true
 				break
 			}
 		}
-		if tooHigh {
+		if is_negative {
 			continue
 		}
-		nextStateStr := intSliceToString(nextState)
-		if seen[nextStateStr] {
-			continue
+
+		result := len(partialPath)
+		if !isJoltageValid(newJoltage) {
+			all_evens := true
+			mult := 1
+			for all_evens {
+				mult *= 2
+				for i := range newJoltage {
+					newJoltage[i] = newJoltage[i] / 2
+					if newJoltage[i]%2 == 1 {
+						all_evens = false
+					}
+					all_evens = false
+				}
+			}
+
+			pathScore := findJoltageRoute(newJoltage, switches, newPath)
+			if pathScore == math.MaxInt32 {
+				continue
+			}
+			result += pathScore * mult
 		}
-		seen[nextStateStr] = true
-		count := findJoltageRouteStep(machine, nextState, seen, targetStateStr)
-		if count != -1 && count < best {
-			return count + 1
+		if result < minPath {
+			minPath = result
 		}
 	}
-	return -1
+	return minPath
 }
 
-func findIndicatorRoute(machine Machine) int {
-	seen := make(map[string]bool)
-	states := [][]bool{make([]bool, len(machine.indicatorTarget))}
-	targetStateStr := boolSliceToString(machine.indicatorTarget)
-	count := 0
-	for true {
-		count++
-		nextStates := [][]bool{}
-		for _, state := range states {
-			for _, sw := range machine.switches {
-				nextState := applyIndicatorSwitches(state, sw)
-				nextStateStr := boolSliceToString(nextState)
-				if seen[nextStateStr] {
-					continue
-				}
-				if nextStateStr == targetStateStr {
-					return count
-				}
-				seen[nextStateStr] = true
-				nextStates = append(nextStates, nextState)
-			}
+func isJoltageValid(joltage []int) bool {
+	for _, j := range joltage {
+		if j != 0 {
+			return false
 		}
-
-		states = nextStates
 	}
-	return count
+	return true
+}
+
+func getIndicatorFromJoltage(joltage []int) []bool {
+	indicator := make([]bool, len(joltage))
+	for i, j := range joltage {
+		indicator[i] = j%2 == 1
+	}
+	return indicator
+}
+
+func findIndicatorRoute(machine Machine) [][]int {
+	paths := make([][]int, 1)
+	paths[0] = make([]int, 0)
+	targetStateStr := boolSliceToString(machine.indicatorTarget)
+	fullPaths := [][]int{}
+	options := generateAllSubsets(len(machine.switches))
+	for _, o := range options {
+		indicators := make([]bool, len(machine.indicatorTarget))
+		for _, sw := range o {
+			indicators = applyIndicatorSwitches(indicators, machine.switches[sw])
+		}
+		if targetStateStr == boolSliceToString(indicators) {
+			fullPaths = append(fullPaths, o)
+		}
+	}
+	return fullPaths
 }
 
 func applyIndicatorSwitches(state []bool, switches []int) []bool {
@@ -179,4 +209,28 @@ func readLinesFromFile(filename string) []string {
 		log.Fatal(err)
 	}
 	return strings.Split(string(content), "\n")
+}
+
+// generateAllSubsets returns all possible subsets of numbers [0, 1, 2, ..., n]
+// This is the power set - includes empty set and all combinations
+func generateAllSubsets(n int) [][]int {
+	var result [][]int
+	var generate func([]int, int)
+
+	generate = func(current []int, start int) {
+		// Add current subset to result (make a copy)
+		subset := make([]int, len(current))
+		copy(subset, current)
+		result = append(result, subset)
+
+		// Generate all subsets that include numbers from start to n
+		for i := start; i < n; i++ {
+			current = append(current, i)
+			generate(current, i+1)
+			current = current[:len(current)-1] // backtrack
+		}
+	}
+
+	generate([]int{}, 0)
+	return result
 }
