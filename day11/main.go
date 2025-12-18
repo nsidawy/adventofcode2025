@@ -13,7 +13,6 @@ func main() {
 	}
 	filename := os.Args[1]
 	lines := readLinesFromFile(filename)
-	neighbors := make(map[string][]string)
 	reverse := make(map[string][]string)
 	for _, line := range lines {
 		parts := strings.Split(line, ": ")
@@ -28,34 +27,23 @@ func main() {
 			}
 			reverse[e] = append(reverse[e], start)
 		}
-		neighbors[start] = ends
 	}
-	//fmt.Println(getPaths(neighbors, "you", "out"))
-	fmt.Println(getPathsReverse(reverse, "you", "out"))
-	c1 := getPathsReverse(reverse, "svr", "fft")
-	fmt.Println(c1)
-	c2 := getPathsReverse(reverse, "fft", "dac")
-	fmt.Println(c2)
-	c3 := getPathsReverse(reverse, "dac", "out")
-	fmt.Println(c3)
-	fmt.Println(c1 * c2 * c3)
-}
 
-func getPaths(neighbors map[string][]string, start string, end string) int {
-	count := 0
-	current := []string{start}
-	for len(current) > 0 {
-		next := []string{}
-		for _, c := range current {
-			if c == end {
-				count++
-				continue
-			}
-			next = append(next, neighbors[c]...)
+	calculatePaths := func(path []string) int {
+		total := 1
+		for i := 0; i < len(path)-1; i++ {
+			p := getPathsReverse(reverse, path[i], path[i+1])
+			total = p * total
 		}
-		current = next
+		return total
 	}
-	return count
+
+	path1 := calculatePaths([]string{"you", "out"})
+	fmt.Println(path1)
+
+	path2a := calculatePaths([]string{"svr", "fft", "dac", "out"})
+	path2b := calculatePaths([]string{"svr", "dac", "fft", "out"})
+	fmt.Println(path2a, path2b)
 }
 
 func getPathsReverse(reverse map[string][]string, start string, end string) int {
