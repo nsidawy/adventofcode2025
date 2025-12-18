@@ -65,37 +65,6 @@ func getPathsReverse(reverse map[string][]string, start string, end string) int 
 	return count
 }
 
-type Path struct {
-	lastNode string
-	is_fft   bool
-	is_dac   bool
-}
-
-func getPaths2(neighbors map[string][]string) int {
-	count := 0
-	current := []Path{{lastNode: "svr", is_fft: false, is_dac: false}}
-	loop := 0
-	for len(current) > 0 {
-		fmt.Println(loop, len(current))
-		next := []Path{}
-		for _, p := range current {
-			if p.lastNode == "out" {
-				if p.is_fft && p.is_dac {
-					count++
-				}
-				continue
-			}
-			for _, n := range neighbors[p.lastNode] {
-				newPath := Path{lastNode: n, is_fft: p.is_fft || n == "fft", is_dac: p.is_dac || n == "dac"}
-				next = append(next, newPath)
-			}
-		}
-		current = next
-		loop++
-	}
-	return count
-}
-
 func readLinesFromFile(filename string) []string {
 	content, err := os.ReadFile(filename)
 	if err != nil {
